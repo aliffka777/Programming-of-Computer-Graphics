@@ -1,2 +1,2 @@
 # Programming-of-Computer-Graphics
-The repository for the course.
+Here are some projects from the course of PCG.
