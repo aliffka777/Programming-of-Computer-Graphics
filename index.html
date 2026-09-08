@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Конвертер цветов</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #2c2c2c;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Verdana, sans-serif;
+      font-size: 40pt;
+      border-bottom: 3px solid #939090;
+      padding-bottom: 10px;
+    }
+
+    .main-preview {
+      width: 300px;
+      height: 300px;
+      border-radius: 20px;
+      border: 4px solid #444;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(10, 30px);
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: 2px solid #444;
+      cursor: pointer;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .panel {
+      background: #3a3a3a;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+      text-align: center;
+      color: #fff;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      gap: 10px;
+    }
+
+    .row label {
+      width: 40px;
+    }
+
+    .row input[type="number"] {
+      width: 60px;
+      background: #222;
+      border: 1px solid #555;
+      color: #fff;
+      padding: 3px;
+      border-radius: 6px;
+    }
+
+    .row input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 4px;
+      background: #555;
+      outline: none;
+    }
+
+    .row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ddd;
+      cursor: pointer;
+      border: 2px solid #222;
+    }
+
+    .row input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ddd;
+      cursor: pointer;
+      border: 2px solid #222;
+    }
+
+    .warning {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2c551d;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Конвертер цветов</h1>
+
+  <div class="main-preview" id="preview"></div>
+
+  <div class="palette" id="palette"></div>
+  <input type="color" id="colorPicker" value="#ff0000">
+
+  <div class="container">
+    <div class="panel">
+      <h2>CMYK</h2>
+      <div class="row"><label>C</label><input type="number" id="c" min="0" max="100"><input type="range" id="cRange"
+          min="0" max="100"></div>
+      <div class="row"><label>M</label><input type="number" id="m" min="0" max="100"><input type="range" id="mRange"
+          min="0" max="100"></div>
+      <div class="row"><label>Y</label><input type="number" id="y" min="0" max="100"><input type="range" id="yRange"
+          min="0" max="100"></div>
+      <div class="row"><label>K</label><input type="number" id="k" min="0" max="100"><input type="range" id="kRange"
+          min="0" max="100"></div>
+    </div>
+
+    <div class="panel">
+      <h2>RGB</h2>
+      <div class="row"><label>R</label><input type="number" id="r" min="0" max="255"><input type="range" id="rRange"
+          min="0" max="255"></div>
+      <div class="row"><label>G</label><input type="number" id="g" min="0" max="255"><input type="range" id="gRange"
+          min="0" max="255"></div>
+      <div class="row"><label>B</label><input type="number" id="b" min="0" max="255"><input type="range" id="bRange"
+          min="0" max="255"></div>
+    </div>
+
+    <div class="panel">
+      <h2>HLS</h2>
+      <div class="row"><label>H</label><input type="number" id="h" min="0" max="360"><input type="range" id="hRange"
+          min="0" max="360"></div>
+      <div class="row"><label>L</label><input type="number" id="l" min="0" max="100"><input type="range" id="lRange"
+          min="0" max="100"></div>
+      <div class="row"><label>S</label><input type="number" id="s" min="0" max="100"><input type="range" id="sRange"
+          min="0" max="100"></div>
+    </div>
+  </div>
+
+  <div class="warning" id="warning">Недопустимое значение!</div>
+
+  <script>
+    const preview = document.getElementById("preview");
+    const warning = document.getElementById("warning");
+
+    function showWarning() {
+      warning.style.display = "block";
+      setTimeout(() => { warning.style.display = "none"; }, 2000);
+    }
+
+    function clampWithWarn(v, min, max) {
+      if (v < min) { showWarning(); return min; }
+      if (v > max) { showWarning(); return max; }
+      return v;
+    }
+
+    const rEl = document.getElementById("r"), gEl = document.getElementById("g"), bEl = document.getElementById("b");
+    const rRange = document.getElementById("rRange"), gRange = document.getElementById("gRange"), bRange = document.getElementById("bRange");
+
+    const cEl = document.getElementById("c"), mEl = document.getElementById("m"), yEl = document.getElementById("y"), kEl = document.getElementById("k");
+    const cRange = document.getElementById("cRange"), mRange = document.getElementById("mRange"), yRange = document.getElementById("yRange"), kRange = document.getElementById("kRange");
+
+    const hEl = document.getElementById("h"), lEl = document.getElementById("l"), sEl = document.getElementById("s");
+    const hRange = document.getElementById("hRange"), lRange = document.getElementById("lRange"), sRange = document.getElementById("sRange");
+
+    const colorPicker = document.getElementById("colorPicker");
+
+    function rgbToCmyk(r, g, b) { let c = 1 - r / 255, m = 1 - g / 255, y = 1 - b / 255; let k = Math.min(c, m, y); if (k === 1) return { c: 0, m: 0, y: 0, k: 100 }; return { c: Math.round((c - k) / (1 - k) * 100), m: Math.round((m - k) / (1 - k) * 100), y: Math.round((y - k) / (1 - k) * 100), k: Math.round(k * 100) }; }
+    function cmykToRgb(c, m, y, k) { c /= 100; m /= 100; y /= 100; k /= 100; return { r: Math.round(255 * (1 - c) * (1 - k)), g: Math.round(255 * (1 - m) * (1 - k)), b: Math.round(255 * (1 - y) * (1 - k)) }; }
+    function rgbToHls(r, g, b) { r /= 255; g /= 255; b /= 255; let max = Math.max(r, g, b), min = Math.min(r, g, b); let h, l = (max + min) / 2, s; if (max === min) { h = s = 0; } else { let d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min); switch (max) { case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; }h /= 6; } return { h: Math.round(h * 360), l: Math.round(l * 100), s: Math.round(s * 100) }; }
+    function hlsToRgb(h, l, s) { h /= 360; l /= 100; s /= 100; function hue2rgb(p, q, t) { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; } let r, g, b; if (s === 0) { r = g = b = l; } else { let q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q; r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3); } return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) }; }
+    function rgbToHex(r, g, b) { return "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join(""); }
+
+    function updateFromRGB(r, g, b) {
+      r = clampWithWarn(r, 0, 255); g = clampWithWarn(g, 0, 255); b = clampWithWarn(b, 0, 255);
+      rEl.value = r; gEl.value = g; bEl.value = b;
+      rRange.value = r; gRange.value = g; bRange.value = b;
+
+      let cmyk = rgbToCmyk(r, g, b);
+      cEl.value = cmyk.c; mEl.value = cmyk.m; yEl.value = cmyk.y; kEl.value = cmyk.k;
+      cRange.value = cmyk.c; mRange.value = cmyk.m; yRange.value = cmyk.y; kRange.value = cmyk.k;
+
+      let hls = rgbToHls(r, g, b);
+      hEl.value = hls.h; lEl.value = hls.l; sEl.value = hls.s;
+      hRange.value = hls.h; lRange.value = hls.l; sRange.value = hls.s;
+
+      preview.style.background = `rgb(${r},${g},${b})`;
+      colorPicker.value = rgbToHex(r, g, b);
+    }
+
+    function bindSync(numEl, rangeEl, callback, min, max) {
+      numEl.addEventListener("input", () => {
+        numEl.value = clampWithWarn(+numEl.value, min, max);
+        rangeEl.value = numEl.value; callback();
+      });
+      rangeEl.addEventListener("input", () => { numEl.value = rangeEl.value; callback(); });
+    }
+
+    bindSync(rEl, rRange, () => updateFromRGB(+rEl.value, +gEl.value, +bEl.value), 0, 255);
+    bindSync(gEl, gRange, () => updateFromRGB(+rEl.value, +gEl.value, +bEl.value), 0, 255);
+    bindSync(bEl, bRange, () => updateFromRGB(+rEl.value, +gEl.value, +bEl.value), 0, 255);
+
+    bindSync(cEl, cRange, () => { let rgb = cmykToRgb(+cEl.value, +mEl.value, +yEl.value, +kEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+    bindSync(mEl, mRange, () => { let rgb = cmykToRgb(+cEl.value, +mEl.value, +yEl.value, +kEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+    bindSync(yEl, yRange, () => { let rgb = cmykToRgb(+cEl.value, +mEl.value, +yEl.value, +kEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+    bindSync(kEl, kRange, () => { let rgb = cmykToRgb(+cEl.value, +mEl.value, +yEl.value, +kEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+
+    bindSync(hEl, hRange, () => { let rgb = hlsToRgb(+hEl.value, +lEl.value, +sEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 360);
+    bindSync(lEl, lRange, () => { let rgb = hlsToRgb(+hEl.value, +lEl.value, +sEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+    bindSync(sEl, sRange, () => { let rgb = hlsToRgb(+hEl.value, +lEl.value, +sEl.value); updateFromRGB(rgb.r, rgb.g, rgb.b); }, 0, 100);
+
+    colorPicker.addEventListener("input", () => {
+      let hex = colorPicker.value;
+      updateFromRGB(parseInt(hex.substr(1, 2), 16),
+        parseInt(hex.substr(3, 2), 16),
+        parseInt(hex.substr(5, 2), 16));
+    });
+
+    const palette = document.getElementById("palette");
+    const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
+      "#FFFFFF", "#000000", "#808080", "#C0C0C0", "#800000", "#808000",
+      "#008000", "#800080", "#008080", "#000080", "#FFA500", "#A52A2A",
+      "#FFC0CB", "#90EE90"];
+    colors.forEach(col => {
+      let swatch = document.createElement("div");
+      swatch.className = "swatch";
+      swatch.style.background = col;
+      swatch.addEventListener("click", () => {
+        let r = parseInt(col.substr(1, 2), 16),
+          g = parseInt(col.substr(3, 2), 16),
+          b = parseInt(col.substr(5, 2), 16);
+        updateFromRGB(r, g, b);
+      });
+      palette.appendChild(swatch);
+    });
+
+    updateFromRGB(255, 0, 0);
+  </script>
+</body>
+
+</html>
