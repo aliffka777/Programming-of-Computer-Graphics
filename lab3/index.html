@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ЛР №3 - Обработка цифровых изображений</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Лабораторная работа №3 - Основы обработки цифровых изображений</h1>
+    <nav class="tabs">
+      <button class="tab active" data-tab="process">Обработка</button>
+      <button class="tab" data-tab="tests">Тестовые изображения</button>
+      <button class="tab" data-tab="help">Справка и отчёт</button>
+    </nav>
+    <div class="status-bar">
+      <span id="status">Готов к работе</span>
+      <span id="imgSize">-</span>
+      <span id="threadsInfo">Потоков: -</span>
+    </div>
+    <div id="progressWrap" class="progress-wrap hidden">
+      <div id="progressBar" class="progress-bar"></div>
+      <span id="progressText" class="progress-text">0%</span>
+    </div>
+  </header>
+
+  <main class="grid tab-panel active" id="tab-process">
+    <aside class="card">
+
+      <div class="method-group">
+        <div class="method-title">Загрузка изображения</div>
+        <input id="file" type="file" accept="image/*">
+        <div class="param-group">
+          <label>Обработка краёв:</label>
+          <select id="edgeMode">
+            <option value="reflect" selected>Reflect (зеркальное отражение)</option>
+            <option value="clamp">Clamp (дублирование граничных)</option>
+          </select>
+        </div>
+        <div class="param-group">
+          <label><input type="checkbox" id="useThreads" checked> Многопоточная свёртка (Web Worker)</label>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Поэлементные операции</div>
+        <div class="param-group">
+          <label>Яркость: <span id="brightnessVal">0</span></label>
+          <input id="brightnessRange" type="range" min="-100" max="100" value="0">
+        </div>
+        <div class="param-group">
+          <label>Контраст: <span id="contrastVal">1.00</span></label>
+          <input id="contrastRange" type="range" min="0" max="300" value="100">
+        </div>
+        <div class="param-group">
+          <label>Гамма: <span id="gammaVal">1.00</span></label>
+          <input id="gammaRange" type="range" min="10" max="300" value="100">
+        </div>
+        <div class="row">
+          <button id="applyPointOps">Применить</button>
+          <button id="resetPointOps" class="ghost">Сброс</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Линейное контрастирование</div>
+        <div class="row">
+          <button id="applyLinearContrast">Применить (2%/98%)</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Эквализация гистограммы</div>
+        <div class="row">
+          <button id="applyEqualizeRGB">RGB (3 канала)</button>
+          <button id="applyEqualizeHSV">HSV (V-канал)</button>
+        </div>
+        <div class="param-group" style="margin-top:8px">
+          <label>CLAHE - тайлы: <span id="claheTilesVal">8</span></label>
+          <input id="claheTiles" type="range" min="2" max="16" value="8">
+        </div>
+        <div class="param-group">
+          <label>CLAHE - clip limit: <span id="claheClipVal">40</span></label>
+          <input id="claheClip" type="range" min="1" max="200" value="40">
+        </div>
+        <div class="row">
+          <button id="applyClahe">CLAHE</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Глобальная пороговая обработка</div>
+        <div class="param-group">
+          <label>Порог: <span id="globalThresholdVal">128</span></label>
+          <input id="globalThreshold" type="range" min="0" max="255" value="128">
+        </div>
+        <div class="row">
+          <button id="applyGlobalThreshold">Фиксированный</button>
+          <button id="applyOtsuThreshold">Отсу (auto)</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Локальный / адаптивный порог</div>
+        <div class="param-group">
+          <label>Размер окна: <span id="windowSizeVal">25</span></label>
+          <input id="windowSize" type="range" min="3" max="101" step="2" value="25">
+        </div>
+        <div class="param-group">
+          <label>k (Sauvola/Wolf): <span id="sauvolaKVal">0.20</span></label>
+          <input id="sauvolaK" type="range" min="1" max="80" value="20">
+        </div>
+        <div class="row">
+          <button id="applySauvola">Sauvola (SAT)</button>
+          <button id="applyWolf">Wolf (SAT)</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Низкочастотный (сглаживающий)</div>
+        <div class="param-group">
+          <label>σ Гаусса: <span id="gaussSigmaVal">1.5</span></label>
+          <input id="gaussSigma" type="range" min="1" max="50" value="15">
+        </div>
+        <div class="row">
+          <button id="applyGauss">Гаусс (separable)</button>
+          <button id="applyBox">Box (separable)</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Высокочастотный (резкость)</div>
+        <div class="param-group">
+          <label>Сила: <span id="unsharpAmountVal">1.00</span></label>
+          <input id="unsharpAmount" type="range" min="10" max="300" value="100">
+        </div>
+        <div class="row">
+          <button id="applyUnsharp">Unsharp Mask</button>
+          <button id="applyLaplacian">Лаплас</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Нелинейный (порядковая статистика)</div>
+        <div class="param-group">
+          <label>Радиус: <span id="medianRadiusVal">1</span></label>
+          <input id="medianRadius" type="range" min="1" max="4" value="1">
+        </div>
+        <div class="row">
+          <button id="applyMedian">Медианный фильтр</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Сегментация: границы</div>
+        <div class="row">
+          <button id="applySobel">Sobel (модуль)</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="applySobelDir">Sobel + направления</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="applyCanny">Canny (субпиксельный)</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Морфологическая обработка</div>
+        <div class="param-group">
+          <label>Структурирующий элемент:</label>
+          <select id="structType">
+            <option value="rectangle">Прямоугольник</option>
+            <option value="cross" selected>Крест</option>
+            <option value="ellipse">Эллипс</option>
+          </select>
+        </div>
+        <div class="param-group">
+          <label>Размер: <span id="structSizeVal">3</span></label>
+          <input id="structSize" type="range" min="3" max="15" step="2" value="3">
+        </div>
+        <div class="row">
+          <button id="applyErode">Erosion</button>
+          <button id="applyDilate">Dilation</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="applyOpen">Opening</button>
+          <button id="applyClose">Closing</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="applyMorphGrad">Gradient</button>
+          <button id="applyTopHat">Top-Hat</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="applyBlackHat">Black-Hat</button>
+        </div>
+      </div>
+
+      <div class="method-group">
+        <div class="method-title">Утилиты</div>
+        <div class="row">
+          <button id="resetAll" class="ghost">Сброс</button>
+          <button id="download" class="secondary">Скачать</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="images-container">
+      <div class="image-card">
+        <div class="image-comparison">
+          <div class="image-wrapper">
+            <div class="small">Исходное изображение</div>
+            <canvas id="origCanvas" width="512" height="512"></canvas>
+          </div>
+          <div class="image-wrapper">
+            <div class="small">Результат обработки</div>
+            <canvas id="outCanvas" width="512" height="512"></canvas>
+          </div>
+        </div>
+
+        <div class="hist-row">
+          <div class="image-wrapper">
+            <div class="small">Гистограмма: исходное</div>
+            <canvas id="origHist" width="500" height="140"></canvas>
+          </div>
+          <div class="image-wrapper">
+            <div class="small">Гистограмма: результат</div>
+            <canvas id="outHist" width="500" height="140"></canvas>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="small">Статистика изображения:</div>
+          <table class="stats-table">
+            <thead><tr><th></th><th>Среднее</th><th>σ</th><th>Энтропия</th></tr></thead>
+            <tbody>
+              <tr><td>Исходное</td><td id="sOrigMean">-</td><td id="sOrigStd">-</td><td id="sOrigEnt">-</td></tr>
+              <tr><td>Результат</td><td id="sOutMean">-</td><td id="sOutStd">-</td><td id="sOutEnt">-</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="tab-panel" id="tab-tests">
+    <div class="tests-grid">
+      <div class="test-card" data-test="noisy">
+        <div class="method-title">1. Зашумлённое</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Гауссов + импульсный шум - для медианного и сглаживающего фильтров.</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+      <div class="test-card" data-test="blurry">
+        <div class="method-title">2. Размытое</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Размыто гауссом - для повышения резкости (unsharp/лаплас).</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+      <div class="test-card" data-test="lowContrast">
+        <div class="method-title">3. Малоконтрастное</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Узкий диапазон яркостей - для контрастирования и эквализации.</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+      <div class="test-card" data-test="textUneven">
+        <div class="method-title">4. Текст, неравномерный фон</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Глобальный порог не справится - для Sauvola/Wolf.</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+      <div class="test-card" data-test="smallDetails">
+        <div class="method-title">5. Мелкие детали на неоднородном фоне</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Для морфологического Top-Hat / Black-Hat.</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+      <div class="test-card" data-test="edges">
+        <div class="method-title">6. Границы и углы</div>
+        <canvas class="test-canvas" width="220" height="220"></canvas>
+        <p class="test-desc">Для Sobel / Canny с картой направлений.</p>
+        <button class="load-test">Загрузить</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="tab-help">
+    <div class="help-grid">
+      <article class="help-card">
+        <h2>Архитектура приложения</h2>
+        <ol>
+          <li><b>Presentation Layer (UI)</b> - canvas, слайдеры, прогресс-бар.</li>
+          <li><b>Memory &amp; Pixel Access Layer</b> - класс <code>ImageBuffer</code>, честный побайтовый доступ к <code>Uint8ClampedArray</code> / <code>Float32Array</code>, обработка краёв (Reflect / Clamp).</li>
+          <li><b>Processing Layer</b> - чистые математические функции над буферами. Не зависят от UI.</li>
+        </ol>
+      </article>
+      <article class="help-card">
+        <h2>Реализованные алгоритмы</h2>
+        <ul>
+          <li>Поэлементные (LUT): яркость, контраст, гамма.</li>
+          <li>Линейное контрастирование (по 2%/98% перцентилям).</li>
+          <li>Эквализация RGB и HSV (V-канал).</li>
+          <li>CLAHE (тайлы + clip limit + билинейная интерполяция).</li>
+          <li>Глобальный порог, Отсу (межклассовая дисперсия).</li>
+          <li>Sauvola, Wolf - через интегральное изображение (SAT).</li>
+          <li>Гаусс и Box - разделяемая свёртка O(K·N²).</li>
+          <li>Unsharp Mask, Лапласиан.</li>
+          <li>Медианный фильтр (порядковая статистика).</li>
+          <li>Sobel (модуль и карта направлений через HSV).</li>
+          <li>Canny с субпиксельной локализацией.</li>
+          <li>Морфология: Erode/Dilate/Open/Close/Gradient/Top-Hat/Black-Hat.</li>
+          <li>Многопоточная свёртка (Web Worker, полосы изображения).</li>
+        </ul>
+      </article>
+      <article class="help-card">
+        <h2>Обработка краёв</h2>
+        <p><b>Reflect (REFLECT_101)</b>: индекс отражается без дублирования границы - плавные переходы.</p>
+        <p><b>Clamp</b>: индекс зажимается к граничному - сохраняет уровень фона, но даёт «плато» на краях.</p>
+      </article>
+      <article class="help-card">
+        <h2>Аналитический отчёт</h2>
+        <p>Кнопка создаёт HTML-файл со сравнением «до/после» для всех ключевых методов: изображения, гистограммы, статистика (μ, σ, энтропия).</p>
+        <button id="buildReport" class="secondary">Сформировать отчёт</button>
+      </article>
+    </div>
+  </section>
+</div>
+
+<script src="js/buffer.js"></script>
+<script src="js/utils.js"></script>
+
+<script src="js/processing/point-ops.js"></script>
+<script src="js/processing/histogram.js"></script>
+<script src="js/processing/porog.js"></script>
+<script src="js/processing/filters.js"></script>
+<script src="js/processing/nonlinear.js"></script>
+<script src="js/processing/segmentation.js"></script>
+<script src="js/processing/morphology.js"></script>
+
+<script src="js/parallel.js"></script>
+<script src="js/testimages.js"></script>
+
+<script src="js/report.js"></script>
+
+<script src="js/ui.js"></script>
+</body>
+</html>
