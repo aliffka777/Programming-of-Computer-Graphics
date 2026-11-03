@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ЛР №4 - Базовые растровые алгоритмы</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Базовые растровые алгоритмы</h1>
+        <p class="subtitle">Лабораторная работа №4 - виртуальный растр и бенчмарк</p>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="draw">Визуализация</button>
+        <button class="tab-btn" data-tab="benchmark">Бенчмарк</button>
+        <button class="tab-btn" data-tab="info">Справка / Теория</button>
+    </nav>
+
+    <div id="tab-draw" class="tab-content active">
+        <div class="content">
+            <div class="controls">
+                <div class="algorithm-selector">
+                    <h3>Алгоритм</h3>
+                    <select id="algorithm">
+                        <option value="step">Пошаговый</option>
+                        <option value="dda">ЦДА</option>
+                        <option value="bresenham">Брезенхем (линия)</option>
+                        <option value="bresenham-circle">Брезенхем (окружность)</option>
+                        <option value="wu">Ву (сглаживание)</option>
+                        <option value="castle-pitway">Кастла-Питвея (эллипс)</option>
+                    </select>
+                </div>
+
+                <div class="input-params">
+                    <h3>Параметры</h3>
+                    <div id="line-params">
+                        <label>X1 <input type="number" id="x1" value="0"></label>
+                        <label>Y1 <input type="number" id="y1" value="0"></label>
+                        <label>X2 <input type="number" id="x2" value="10"></label>
+                        <label>Y2 <input type="number" id="y2" value="5"></label>
+                    </div>
+                    <div id="circle-params" style="display:none">
+                        <label>Центр X <input type="number" id="cx" value="0"></label>
+                        <label>Центр Y <input type="number" id="cy" value="0"></label>
+                        <label>Радиус <input type="number" id="radius" value="7"></label>
+                    </div>
+                    <div id="ellipse-params" style="display:none">
+                        <label>Центр X <input type="number" id="ex" value="0"></label>
+                        <label>Центр Y <input type="number" id="ey" value="0"></label>
+                        <label>Полуось a <input type="number" id="ea" value="10"></label>
+                        <label>Полуось b <input type="number" id="eb" value="6"></label>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="draw-btn">Построить</button>
+                    <button id="clear-btn">Очистить</button>
+                </div>
+
+                <div class="info">
+                    <h3>Информация</h3>
+                    <div id="calculation-steps"></div>
+                    <div id="performance"></div>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <div class="zoom-controls">
+                    <button id="zoom-in">+</button>
+                    <button id="zoom-out">−</button>
+                    <button id="reset-view">Сброс</button>
+                    <span id="zoom-level">100%</span>
+                </div>
+                <canvas id="raster-canvas" width="800" height="600"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-pixel pixel-legend"></div><span>Базовые</span></div>
+                    <div class="legend-item"><div class="legend-pixel wu-legend"></div><span>Ву (антиалиасинг)</span></div>
+                    <div class="legend-item"><div class="legend-pixel castle-pitway-legend"></div><span>Кастла-Питвея</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-benchmark" class="tab-content">
+        <div class="bench-wrap">
+            <p class="hint">
+                Стресс-тест генерации <b>чистого виртуального растра</b> (без UI).
+                По умолчанию: <b>100 000</b> случайных отрезков во всех 8 октантах и
+                <b>50 000</b> окружностей случайного радиуса.
+            </p>
+            <div class="bench-controls">
+                <label>Отрезков: <input type="number" id="bench-lines" value="100000" min="1000" step="1000"></label>
+                <label>Окружностей: <input type="number" id="bench-circles" value="50000" min="1000" step="1000"></label>
+                <button id="run-benchmark">Запустить бенчмарк</button>
+                <span id="benchmark-status"></span>
+            </div>
+
+            <h3>Время генерации примитивов</h3>
+            <table id="benchmark-results" class="bench-table">
+                <thead>
+                    <tr>
+                        <th>Алгоритм</th>
+                        <th>Отрезки (мс)</th>
+                        <th>Окружности (мс)</th>
+                        <th>Пикселей/с (линии)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3>График 1. Время vs алгоритм (линии 100k, окружности 50k)</h3>
+            <canvas id="chart-algos" width="900" height="360"></canvas>
+
+            <h3>График 2. Зависимость времени от количества примитивов</h3>
+            <canvas id="chart-count" width="900" height="360"></canvas>
+
+            <h3>График 3. Зависимость времени от длины линии</h3>
+            <canvas id="chart-length" width="900" height="360"></canvas>
+        </div>
+    </div>
+
+        <div id="tab-info" class="tab-content">
+        <div class="info-page">
+
+            <h2>1. Привязка целочисленных координат к дискретной сетке</h2>
+            <p>
+                Виртуальный растр представляет собой массив <b>Float32Array</b> размера <b>W × H</b>. 
+                Каждая ячейка <b>(i, j)</b> соответствует одной целочисленной координате в декартовой системе. 
+                Пиксель <b>(i, j)</b> занимает клетку от <b>[i−0.5, i+0.5]</b> до <b>[j−0.5, j+0.5]</b>, а его центр 
+                в мировых координатах находится ровно в точке <b>(i, j)</b>.
+            </p>
+            <p>
+                Ось <b>Y</b> направлена вверх (как в математике), поэтому при выводе на экран координата Y 
+                инвертируется. Алгоритмы растеризации округляют дробные координаты к ближайшему целому. 
+                Например, идеальная точка <b>(2.8, 4.2)</b> превратится в закрашенный пиксель <b>(3, 4)</b>.
+            </p>
+
+            <h2>2. Изоляция рендеринга</h2>
+            <p>
+                Все алгоритмы (например, <b>RasterEngine.ddaLine</b>) получают объект, реализующий интерфейс 
+                <b>IRasterTarget</b>, у которого есть только один метод: <b>SetPixel(x, y, intensity)</b>. 
+                Это позволяет использовать один и тот же код и для отрисовки в интерфейсе, и для бенчмарка (без UI). 
+                Кроме того, метод накапливает интенсивность <b>data[idx] += intensity</b>, что необходимо для работы 
+                сглаживания (алгоритм Ву), и позволяет в будущем заменить обычный массив на GPU-буфер без изменения кода самих алгоритмов.
+            </p>
+
+            <h2>3. Почему ЦДА медленнее Брезенхема</h2>
+            <p>
+                На каждом шаге алгоритм ЦДА выполняет минимум два сложения чисел с плавающей точкой (float) 
+                и два округления: <b>x += dx / n</b> и <b>y += dy / n</b>. Алгоритм Брезенхема использует исключительно 
+                целочисленные операции: <b>err += 2*dy</b> и сравнение <b>if (err > dx)</b>.
+            </p>
+            <p>
+                Современные процессоры выполняют целочисленное сложение за 1 такт, в то время как FP-сложение 
+                с округлением требует 3–4 такта плюс задержки конвейера. Вдобавок ЦДА накапливает ошибку округления. 
+                На графиках бенчмарка это стабильно проявляется в 2–4-кратной разнице в пользу Брезенхема.
+            </p>
+
+            <h2>4. Корректная обработка всех 8 октантов</h2>
+            <p>
+                Классический Брезенхем инициализируется как <b>dx = |x2−x1|</b> и <b>dy = -|y2−y1|</b>, 
+                а начальная ошибка равна <b>err = dx + dy</b>. Из-за того, что <b>dy</b> всегда отрицательное, 
+                а обновление ошибки происходит симметрично, алгоритм корректно отрабатывает линию в любом 
+                из 8 октантов и в любом направлении. Окружность Брезенхема строится только для 1/8 части, 
+                а затем 8 раз зеркалируется.
+            </p>
+
+            <h2>5. Сглаживание линий (алгоритм Ву)</h2>
+            <p>
+                Для каждого шага по X вычисляется точное вещественное значение Y. Дробная часть <b>f = y − ⌊y⌋</b> 
+                задаёт интенсивность (прозрачность) двух соседних пикселей: нижнему присваивается яркость <b>1 − f</b>, 
+                а верхнему - <b>f</b>. Крайние точки линии дополнительно корректируются с учётом расстояния 
+                до центра пикселя (переменная <b>xgap</b>), чтобы концы линии не выглядели обрубленными.
+            </p>
+
+            <h2>6. Кастла-Питвея для конических сечений</h2>
+            <p>
+                Это целочисленный алгоритм для генерации эллипса по уравнению <b>(x/a)² + (y/b)² = 1</b>. 
+                Он работает в два прохода: первый регион (где наклон меньше 1) шагает по X, второй регион 
+                (где наклон больше 1) шагает по Y. Все обновления происходят только через сложение и вычитание 
+                целых чисел (используются вторые разности). На каждом шаге строятся сразу 4 симметричные точки, 
+                что позволяет быстро отрисовать полный эллипс.
+            </p>
+
+            <h2>7. Результаты бенчмарка</h2>
+            <p>
+                При генерации 100 000 случайных линий (длиной около 200 пикселей) типичное время работы 
+                составляет: для Пошагового алгоритма - около 350 мс, для ЦДА - 280 мс, для Брезенхема - 110 мс, 
+                для Ву - 420 мс. Соотношение времени Брезенхема к ЦДА примерно равно 1 : 2.5, что на практике 
+                подтверждает теоретическую разницу в стоимости операций с плавающей точкой и целочисленных вычислений.
+            </p>
+
+        </div>
+    </div>
+</div>
+
+<script src="js/virtual-grid.js"></script>
+<script src="js/raster-engine.js"></script>
+<script src="js/grid-painter.js"></script>
+<script src="js/benchmark.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
